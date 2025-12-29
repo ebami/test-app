@@ -4,7 +4,7 @@ name: Deploy Backend
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - 'server/**'
       - '.github/workflows/deploy-backend.yml'
@@ -41,42 +41,12 @@ jobs:
           npm prune --production
           zip -r ../deploy.zip .
 
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./deploy.zip
 
-      - name: Configure App Settings
-        uses: azure/appservice-settings@v1
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          app-settings-json: |
-            [
-              {
-                "name": "NODE_ENV",
-                "value": "production"
-              },
-              {
-                "name": "WEBSITE_NODE_DEFAULT_VERSION",
-                "value": "~18"
-              },
-              {
-                "name": "CLIENT_URL",
-                "value": "${{ secrets.CLIENT_URL }}"
-              }
-            ]
-
-      - name: Enable WebSockets
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az webapp config set --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --web-sockets-enabled true
-
-      - name: Logout from Azure
-        run: az logout
+      # Note: WebSockets must be enabled manually in Azure Portal
+      # App Service > Configuration > General settings > Web sockets: On
