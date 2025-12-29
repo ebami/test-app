@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: 'your-backend-app-name'  # Set this to your App Service name
+  AZURE_WEBAPP_NAME: 'mychatapp-api'  # Your Azure App Service name
   AZURE_WEBAPP_PACKAGE_PATH: './server'
   NODE_VERSION: '18.x'
 
