@@ -1,0 +1,82 @@
+# Deploy Node.js Backend to Azure App Service
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: 'your-backend-app-name'  # Set this to your App Service name
+  AZURE_WEBAPP_PACKAGE_PATH: './server'
+  NODE_VERSION: '18.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './server/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Create deployment package
+        working-directory: ./server
+        run: |
+          # Create a zip file excluding dev dependencies
+          npm prune --production
+          zip -r ../deploy.zip .
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ./deploy.zip
+
+      - name: Configure App Settings
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-settings-json: |
+            [
+              {
+                "name": "NODE_ENV",
+                "value": "production"
+              },
+              {
+                "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                "value": "~18"
+              },
+              {
+                "name": "CLIENT_URL",
+                "value": "${{ secrets.CLIENT_URL }}"
+              }
+            ]
+
+      - name: Enable WebSockets
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az webapp config set --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --web-sockets-enabled true
+
+      - name: Logout from Azure
+        run: az logout
